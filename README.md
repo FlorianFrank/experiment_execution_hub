@@ -24,13 +24,30 @@ We use a generic design allowing an easy extension, replacement and maintainance
 
 
 <div align="center">
-    <img src="doc/figures/structure_overview.jpg" width=50%>
+    <img src="doc/figures/structure_overview.jpg" width=100%>
 </div>
+
+
+## How to run
+
+To run the frontend and backend server in docker-compose execute the following command:
+
+```bash
+docker-compose up
+```
+
+The microservice is implemented as simple python implementation. Which can be executed by 
+
+```bash
+python3 start_microservice.py
+```
+
+to execute each component seperatly, please look up the [documentation]() or the readme files within the [backend](https://github.com/FlorianFrank/puf_evaluation_manager), [frontend](https://github.com/FlorianFrank/puf_frontend/) or [microservice](https://github.com/FlorianFrank/puf_hub_micro_service) repositories.
 
 
 ## Documentation
 
- - Further documentation can be found on [Documentation]()
+ Further documentation can be found on [Documentation]()
 
 ## License
 
