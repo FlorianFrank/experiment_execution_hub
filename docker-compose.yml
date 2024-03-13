@@ -10,18 +10,18 @@ services:
       - '6222:6222'
       - '8222:8222'
 
-  puf_hub_frontend:
-    build: ./puf_frontend
-    container_name: puf_hub_frontend
+  test_hub_frontend:
+    build: ./test_hub_frontend
+    container_name: test_hub_frontend
     ports:
       - '3000:3000'
     volumes:
-      - ./puf_frontend:/app
+      - ./test_hub_frontend:/app
       # Consider removing the next line if unnecessary
       - /app/node_modules
 
   test_hub_backend:
-    build: ./puf_manager
+    build: ./test_hub_backend
     container_name: test_hub_backend
     network_mode: host
     depends_on:
@@ -29,7 +29,7 @@ services:
     ports:
       - '8000:8000'
     volumes:
-      - ./puf_manager:/app
+      - ./test_hub_backend:/app
 
 networks:
   nats_network:

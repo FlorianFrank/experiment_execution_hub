@@ -1,9 +1,9 @@
-[submodule "puf_evaluation_manager"]
-	path = puf_evaluation_manager
+[submodule "test_hub_backend"]
+	path = test_hub_backend
 	url = git@github.com:FlorianFrank/puf_evaluation_manager.git
-[submodule "puf_hub_micro_service"]
-	path = puf_hub_micro_service
+[submodule "test_hub_micro_service"]
+	path = test_hub_micro_service
 	url = git@github.com:FlorianFrank/puf_hub_micro_service.git
-[submodule "puf_frontend"]
-	path = puf_frontend
+[submodule "test_hub_frontend"]
+	path = test_hub_frontend
 	url = git@github.com:FlorianFrank/puf_frontend.git
