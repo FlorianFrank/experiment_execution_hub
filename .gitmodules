@@ -1,0 +1,3 @@
+[submodule "puf_evaluation_manager"]
+	path = puf_evaluation_manager
+	url = git@github.com:FlorianFrank/puf_evaluation_manager.git
