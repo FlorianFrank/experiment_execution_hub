@@ -18,9 +18,9 @@ This repository contains the implementation of a generic test execution hub, ena
 ## Architectural Overview
 
 We use a generic design allowing an easy extension, replacement and maintainance of different components. In general the architecture is composed of three different layers: 
-    - **Frontend**: Currently implemented as a web application, the frontend allows user interaction through a single-page application (SPA).
-    - **Backend**: Responsible for managing the frontend's state, database access, and test execution, the backend communicates with the frontend via a REST API. It efficiently schedules tests across multiple microservices, establishing connections through the NATS messaging service.
-    - **Test micro service**: Multiple microservices operate as individual execution instances, enabling the independent execution of tests that the backend schedules on specific devices using a sample. In the case of memory-based PUFs, the memory module serves as the sample, connected to the device, such as a microcontroller. This modular design enhances flexibility and scalability within the system architecture.
+- **Frontend**: Currently implemented as a web application, the frontend allows user interaction through a single-page application (SPA).
+- **Backend**: Responsible for managing the frontend's state, database access, and test execution, the backend communicates with the frontend via a REST API. It efficiently schedules tests across multiple microservices, establishing connections through the NATS messaging service.
+- **Test micro service**: Multiple microservices operate as individual execution instances, enabling the independent execution of tests that the backend schedules on specific devices using a sample. In the case of memory-based PUFs, the memory module serves as the sample, connected to the device, such as a microcontroller. This modular design enhances flexibility and scalability within the system architecture.
 
 
 <div align="center">
