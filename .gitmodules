@@ -1,3 +1,6 @@
 [submodule "puf_evaluation_manager"]
 	path = puf_evaluation_manager
 	url = git@github.com:FlorianFrank/puf_evaluation_manager.git
+[submodule "puf_hub_micro_service"]
+	path = puf_hub_micro_service
+	url = git@github.com:FlorianFrank/puf_hub_micro_service.git
