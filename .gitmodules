@@ -4,3 +4,6 @@
 [submodule "puf_hub_micro_service"]
 	path = puf_hub_micro_service
 	url = git@github.com:FlorianFrank/puf_hub_micro_service.git
+[submodule "puf_frontend"]
+	path = puf_frontend
+	url = git@github.com:FlorianFrank/puf_frontend.git
