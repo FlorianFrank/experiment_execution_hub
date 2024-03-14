@@ -22,7 +22,116 @@ Framework <https://github.com/FlorianFrank/generic_test_framework>`__.
 Database Structure
 ------------------
 
-Test123
+In general, the backend implementation relies on a straightforward database schema, as illustrated in the following figure.
+
+.. image:: ../../figures/backend/database_schema.jpg
+    :width: 100%
+    :align: center
+
+|br|
+
+Test execution can be categorized into three basic groups. First, the 'sample under test' represents the component on which the test is performed. 
+For instance, in the case of memory-based PUFs, the sample would be the memory module. 
+The second group encompasses the definition of the test itself, specifying the parameters and conditions for its execution. For example, this includes defining row-hammering tests.
+The third class describes the executing entity responsible for the execution of the test on a given sample, for example a memory controller executing a test on a specific sample.
+This database schema is automatically generated from a json configuration, explained later. Also the frontend GUI is adopted dynamically to this scheme.
+
+Each of these groups has specific tables to store their respective templates.
+For instance a Sample config for a memory based PUF describes that a memory must have an address bus a data bus, etc.
+Whereas the Sample template describes a memory of specific properties, e.g. a SRAM memory module of a certain manufacturer with a set of properties. 
+Instances of these memory modules are stored in the 'Sample Instance' table.
+
+This structure also applies to the 'Tests' category. Here, a 'Test Template' defines the parameters of a specific test, like a row-hammering test.
+A Test Instance refers to the actual execution of a test template on a particular sample.
+
+
+The definition of devices is slightly more complicated, as multiple devices may be necessary to execute a single test. For instance, conducting measurements, may require a micro-controller, 
+a function generatorand an oscilloscope. These devices are defined as devices, based on a device template. All these devices are connected by a executer instance responsible, for the
+execution of a test instance.
+
+
+A sample configuration for a carbon-nanotube based PUF implementation can be seen in the following sample:
+
+.. image:: ../../figures/backend/database_example.jpg
+    :width: 100%
+    :align: center
+
+|br|
+
+
+Automated test scheme implementation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Within the backend it is possible to add new test categories, sample types or device classes without writing a single line of code. We provide a json definition, 
+which allows the automatic generation of the database scheme, as well as a dynamic adoption of the GUI elements in the frontend. 
+
+The config files must be added to the config folder in the backend and will be automatically discovered parsed and the database scheme and GUI adjustment will be done.
+
+Within this folder a tests_config.json defines the different test categories: 
+
+.. code-block:: json
+
+   {
+   "test_categories": {
+      "cnt_puf": {
+         "name": "Carbon Nanotube Tests",
+         "folder": "cnt_puf"
+      },
+      "memory": {
+         "name": "Memory Tests",
+         "folder": "memory"
+      },
+      "script": {
+         "name": "Script Tests",
+         "folder": "script"
+         }
+      }
+   }
+
+To add a new test category a new entry like
+
+.. code-block:: json
+
+   {
+   "sample_category": {
+         "name": "Sample Category",
+         "folder": "sample_category"
+      }
+   }
+
+must be added. Now a sample_category folder must be created with the subfolders db_model, samples, tests.
+The sample folder contains the sample template, as well as the definition of a sample instance, defined by two files, e.g. the content in the memoryTemplate.json
+defines that a memory has the following attributes:
+
+.. code-block:: json
+   {
+   "type": "None",
+   "manufacturer": "None",
+   "model": "None",
+   "start_address": 0,
+   "stop_address": 0,
+   "data_width": 16,
+   "address_width": 32,
+   "write_cycle_time": 0,
+   "read_cycle_time": 0
+   }
+
+When adding a different test template, the attributes can be completely different. The datatype for creating the database is automatically generated, in case of
+float fields, float numbers must be specified, e.g. 0.0 instead of 0. Otherwise an integer field will be created.
+
+In addition to the template an instance must be added. In this example, the memroyInstance.json simply adds a reference to the template and a specific identifier. 
+Further fields can be added, simultanously to the template generation.
+
+.. code-block:: json
+   {
+   "template": {
+      "ref": "MemoryTemplate"
+   },
+   "memory_id": 0
+   }
+
+
+
 
 Endpoints
 ---------

@@ -14,6 +14,7 @@ Welcome to Test Execution Hub's documentation!
    
 .. include:: general.rst
 .. include:: getting_started.rst
+.. include:: frontend.rst
 .. include:: backend.rst
    
 
