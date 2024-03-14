@@ -16,6 +16,8 @@ Welcome to Test Execution Hub's documentation!
 .. include:: getting_started.rst
 .. include:: frontend.rst
 .. include:: backend.rst
+.. include:: microservices.rst
+.. include:: generic_test_framework.rst
    
 
 
