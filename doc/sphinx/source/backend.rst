@@ -103,9 +103,10 @@ must be added.
 Afterwards, the following folder structure must be established according to the database configuration as shown above.
 
 .. image:: ../../figures/backend/config_folder_structure.png
-    :width: 100%
+    :width: 50%
     :align: center
 
+|br|
 
 - The **tests** folder contains configurations for all test templates, along with optional additional tooltips for the configuration parameters.
 - The **samples** folder contains all sample configuration files, defining the structure of sample instances and templates.
