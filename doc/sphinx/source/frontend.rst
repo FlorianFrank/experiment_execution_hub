@@ -1,6 +1,4 @@
-.. |br| raw:: html
-
-   <br />
+.. include:: definitions.rst
 
 Graphical User Interface
 ========================
@@ -139,7 +137,7 @@ visualization.
 
 |br|
 
- Based on the selected measurements, differnet post-processing and visualization algorithms
+Based on the selected measurements, differnet post-processing and visualization algorithms
 are suggested, which can be customized. The visualization is executed by dedicated evaluation runner in the
 backend. 
 
@@ -151,7 +149,7 @@ backend.
 
 
 Evaluation of Raw Results
-^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 In the results view, the current state of the visualizer runner in the backend is visualized. 
 After finishing the visualization and post-processing, the result can be displayed. 

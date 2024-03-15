@@ -1,11 +1,9 @@
+.. include:: definitions.rst
+
 .. Test Execution Hub documentation master file, created by
    sphinx-quickstart on Wed Mar 13 20:25:51 2024.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
-
-.. |br| raw:: html
-
-   <br />
 
 Backend
 =======
@@ -99,11 +97,68 @@ To add a new test category a new entry like
       }
    }
 
-must be added. Now a sample_category folder must be created with the subfolders db_model, samples, tests.
-The sample folder contains the sample template, as well as the definition of a sample instance, defined by two files, e.g. the content in the memoryTemplate.json
-defines that a memory has the following attributes:
+must be added. 
+
+
+Afterwards, the following folder structure must be established according to the database configuration as shown above.
+
+.. image:: ../../figures/backend/config_folder_structure.png
+    :width: 100%
+    :align: center
+
+
+- The **tests** folder contains configurations for all test templates, along with optional additional tooltips for the configuration parameters.
+- The **samples** folder contains all sample configuration files, defining the structure of sample instances and templates.
+- The **db_model** binds to gether all configurations of a category. It specifies which sample aligns with which template, among other connections.
+
+
+To introduce new test templates, a "templates" folder must be added within the designated folder of the respective test category. Inside this folder, a "tests" directory is created. 
+For instance, in the case of row-hammering tests, the configuration is defined as follows:
 
 .. code-block:: json
+
+   {
+   "start_address": 0,
+   "stop_address": 1000000,
+   "initialization_value": 85,
+   "write_value": 170,
+   "hammer_iterations": 100,
+   "address_offset": 16,
+   "temperature": 20,
+   "humidity": 0,
+   "supply_voltage": 3.3,
+   "iterations": 1
+   }
+
+The backend automatically parses this config and creates the database and GUI elements. The provided values are set as default parameters. 
+Furthermore, this JSON format is compatible with our comprehensive test execution framework, which will be elaborated on later.
+
+Moreover, users have the option to append additional tooltips by including a file with identical naming within the designated tooltips folder. 
+These tooltips are then displayed within the GUI, enabling supplementary descriptions of test parameters. 
+For example, in the context of row-hammering tests, a "rowHammering.json" file would be added to the tooltips folder containing the following content:
+
+.. code-block:: json
+
+   {
+   "start_address": "Start address of the memory module (maximum 32-bit, e.g., 0x00000000)",
+   "stop_address": "Stop address of the memory module (maximum 32-bit, e.g., 0xffffffff). If this value exceeds the address space, the test is executed until the last address in the address space.",
+   "initialization_value": "Value to write to the memory module (maximum 32-bit, e.g., 0x55555555).",
+   "hammer_value": "Value written during the row-hammering operation.",
+   "hammer_iterations": "Number of write iterations for each row-hammering iteration.",
+   "address_offset": "When no address mapping is available, always hammer 'Address Offset' cells and evaluate the next 'Address Offset' ones.",
+   "temperature": "Only applicable if a climate chamber is available.",
+   "humidity": "Only applicable if a climate chamber is available.",
+   "supply_voltage": "Supply voltage of the memory module. Only applicable if a power supply is connected.",
+   "iterations": "Number of iterations for this test."
+   }
+
+
+Now we want to specify the samples on which we want to apply a certain test template. To accomplish this, we need to establish a sample folder. 
+Within this folderthe sample template, as well as the definition of a sample instance is stored. Those are subdivided into two files
+whreas a sample sample template for memory modules can be defined as follows:
+
+.. code-block:: json
+
    {
    "type": "None",
    "manufacturer": "None",
@@ -116,19 +171,109 @@ defines that a memory has the following attributes:
    "read_cycle_time": 0
    }
 
-When adding a different test template, the attributes can be completely different. The datatype for creating the database is automatically generated, in case of
-float fields, float numbers must be specified, e.g. 0.0 instead of 0. Otherwise an integer field will be created.
 
-In addition to the template an instance must be added. In this example, the memroyInstance.json simply adds a reference to the template and a specific identifier. 
+
+When incorporating a distinct test template, the attributes may vary significantly. 
+The data type for database creation is generated automatically. **Caution:** For float fields, it's essential to specify float 
+numbers, such as 0.0 instead of 0, to ensure the creation of a float field; otherwise, an integer field will be 
+generated.
+
+Furthermore, alongside the template, an instance must be included. In this example, the memroyInstance.json simply adds a reference to the template and a specific identifier. 
 Further fields can be added, simultanously to the template generation.
 
 .. code-block:: json
+
    {
    "template": {
       "ref": "MemoryTemplate"
    },
    "memory_id": 0
    }
+
+
+Ultimately, a  configuration file must be specified combining all the configurations. 
+This alows to reuse sample configurations across multiple tests, or conversely, allows various tests to utilize the same sample configurations.
+The following config defines the different tables for row-hammering tests. 
+The provided configuration delineates the distinct tables for row-hammering tests. Each test is identified by an 
+identifier and a name, both displayed within the GUI. The GUI filter section enables the arrangement of elements 
+into different groups on the GUI. For instance, fields containing addresses are automatically assigned to the 
+address group, identifiers containing data are allocated to the data group, and any remaining elements are 
+categorized under the "other" group.
+
+In the following the different tables are defined. Here we can find all tables as defined in the 
+figure showing the database scheme, except the device and executor tables which are generated by user 
+interaction from the GUI.
+
+.. code-block:: json
+
+   {
+      "identifier": "rowHammering",
+      "name": "Row Hammering Tests",
+      "category": "memory",
+      "gui_filter": [
+         {
+            "identifier": "address",
+            "name": "Address"
+         },
+         {
+            "identifier": "value",
+            "name": "Data"
+         },
+         {
+            "identifier": "other",
+            "name": "Other"
+         }
+      ],
+      "tables": [
+         {
+            "db_name": "RowHammeringTemplate",
+            "type": "testtemplate",
+            "schema": "rowHammering.json",
+            "fields": {
+            }
+         },
+         {
+            "db_name": "MemoryTemplate",
+            "type": "sampleTemplate",
+            "schema": "memoryTemplate.json",
+            "fields": {
+            }
+         },
+         {
+            "db_name": "MemoryInstance",
+            "type": "sample",
+            "schema": "memoryInstance.json",
+            "fields": {
+            }
+         }
+      ]
+   }
+
+After specififying the configuration, the database scheme must be generated calling the following command:
+
+.. code-block:: bash
+   
+   python3 ./utils/db_schema_generator.py
+
+
+This command will add a generated folder in the test_manager app. **Caution:** Already generated models will not be overwritten, 
+when modifying an already existing config, make sure you delete the corresponding python file beforehand. 
+Furthermore, this will only generate the models without migrating them. The migration requires the execution of the commands: 
+
+.. code-block:: bash
+   
+   python3 manage.py makemigrations
+   python3 manage.py migrate
+
+
+To execute all commands in one step, the following shell script can be exectued: 
+
+.. code-block:: bash
+   
+   .\redo_migrations.sh
+
+**Caution:** This command also deletes the local sqlite database, deleting all samples and templates. The database storing the 
+measurement results is not touched. 
 
 
 
@@ -141,7 +286,6 @@ Django allows us to subdivide the application into multiple apps with
 different functionality:
 
 -  .. rubric:: Authentication
-      :name: authentication
 
    Provides the functionality required for the logging functionality,
    which is based on a token, which is passed from the frontend.
@@ -158,7 +302,6 @@ different functionality:
          -  **Returns:** HTTP_205_RESET_CONTENT
 
 -  .. rubric:: Dashboard Manager
-      :name: dashboard-manager
 
    Provides all endpoints for widgets on the GUI dashboard
 
@@ -207,7 +350,6 @@ different functionality:
                "list_memory_consumption": [2.4, 2.8, 2.4], "list_cpu_load": [5.3,5.2, 8.5], "list_network_usage": [5.3,5.2, 8.5] }
 
 -  .. rubric:: Device Manager
-      :name: device-manager
 
    Provides all endpoints related to the device manager, e.g. to
    identify devices or to retrieve the wafer configuration.
@@ -250,7 +392,6 @@ different functionality:
                [{"waferID": 2, "pufID": 23, "row": 4, "column": 4, "rowsOnPUF": [1,2,3], "columnsOnPUF": [4,3,2]}]
 
       -  .. rubric:: Evaluation Manager
-            :name: evaluation-manager
 
          Provides all endpoints to run evaluations, to list the
          available evaluation and visualization results and the
@@ -319,25 +460,28 @@ different functionality:
                   characteristics:
 
                   -  e.g. for CNT PUF raw evaluation
-                  .. code-block:: json
-                  
-                     {"scale": "linear", "hide_legend": "false", "legend_font_size": 20, "axis_tick_font_size": 15,
-                     "axis_label_font_size": 20, "title_font_size": 20, "plot_mode": "Source Drain Current"}
+
+                     .. code-block:: json
+                     
+                        {"scale": "linear", "hide_legend": "false", "legend_font_size": 20, "axis_tick_font_size": 15,
+                        "axis_label_font_size": 20, "title_font_size": 20, "plot_mode": "Source Drain Current"}
 
                -  **Returns:**
-               .. code-block:: json
+              
+                  .. code-block:: json
 
-                  {"status": "ok"}
-                  {"status": "error"}
+                     {"status": "ok"}
+                     {"status": "error"}
 
             -  **GET /evaluation/get_status** returns the status of all
                evaluation runs.
 
                -  **Returns:**
-               .. code-block:: json
 
-                  {"tasks": [{"task_id": 158, "id": 158, "title": "Test", "startTime": 1706474333358.4011, 
-                  "stopTime": 1706474385709.7869, "status": "finished", "evaluationType": "waferVisualizer"}]}
+                  .. code-block:: json
+
+                     {"tasks": [{"task_id": 158, "id": 158, "title": "Test", "startTime": 1706474333358.4011, 
+                     "stopTime": 1706474385709.7869, "status": "finished", "evaluationType": "waferVisualizer"}]}
 
             -  **DELETE /evaluation/delete_result** deletes an
                evaluation result from the database.
@@ -347,10 +491,11 @@ different functionality:
                   -  taskID: id of the task to delete.
 
                -  **Results:**
-               .. code-block:: json
 
-                  {"status": "ok"}
-                  {"status": "error"}
+                  .. code-block:: json
+
+                     {"status": "ok"}
+                     {"status": "error"}
 
             -  **GET /evaluation/visualizations** returns evaluation
                data and a visualization json corresponding to a certain
@@ -364,7 +509,6 @@ different functionality:
                      data object.
 
 -  .. rubric:: Generic Messaging Service
-      :name: generic-messaging-service
 
    Provides all the functionality to communicate with a messaging
    service. Currently, NATS messaging service is implemented, which
@@ -378,11 +522,11 @@ different functionality:
 
          -  **Returns:**:
 
-         .. code-block:: json
+            .. code-block:: json
 
-            {"status": "started"}    
-            {"status": "running"}
-            {"status": "error"}
+               {"status": "started"}    
+               {"status": "running"}
+               {"status": "error"}
 
       -  **GET /nats/get_test_status** returns a list of all waiting,
          running or finished tests and additional data such as the test
@@ -395,10 +539,10 @@ different functionality:
 
          -  **Returns:**:
 
-         .. code-block:: json
+            .. code-block:: json
 
-            {"status": "ok"}
-            {"status": "error"}
+               {"status": "ok"}
+               {"status": "error"}
 
       -  **POST /nats/schedule_test** schedules a test across the
          nats-broker.
@@ -409,13 +553,12 @@ different functionality:
 
          -  **Returns:**
 
-         .. code-block:: json
+            .. code-block:: json
 
-            {"status": "ok"}
-            {"status": "error"}
+               {"status": "ok"}
+               {"status": "error"}
 
 -  .. rubric:: Test Manager
-      :name: test-manager
 
    Provides models and functionality to store and filter test templates
    and instances.
@@ -461,10 +604,11 @@ different functionality:
          memristor tests.
 
          -  **Returns:**
-         .. code-block:: json
+         
+            .. code-block:: json
 
-            {"categories": [{"field": "memoryTest", "name": "Memory Test"}, {"field": "cntTest", "name": "Carbon Nanotube Test"},      
-            {"field": "memristorTest", "name": "Memristor Test"}, {"field": "scriptExecution", "name": "Script Test"}]}
+               {"categories": [{"field": "memoryTest", "name": "Memory Test"}, {"field": "cntTest", "name": "Carbon Nanotube Test"},      
+               {"field": "memristorTest", "name": "Memristor Test"}, {"field": "scriptExecution", "name": "Script Test"}]}
 
       -  **POST /tests/add_test** add a test template to the database,
          which can later be scheduled.
@@ -474,12 +618,18 @@ different functionality:
             -  parameter expects a json with test template specific
                parameters, e.g. for cnt-pufs
 
-               .. code-block:: json
+                  .. code-block:: json
 
-                  {"title": "test", "test_type": "TransferCharacterization", "nrIterations": 2, min_vDS: -0.5,
-                   "max_VDS": 0.5, "....."}
+                     {
+                     "title": "test", 
+                      "test_type": "TransferCharacterization", 
+                      "nrIterations": 2, 
+                      "min_vDS": -0.5,
+                      "max_VDS": 0.5
+                      "..."}
 
          -  **Returns:**
+         
            .. code-block:: json
 
                {"status": "ok"}
@@ -492,6 +642,7 @@ different functionality:
             “cnt_puf” or “memory” is currently supported id: Identifier
             of the test of a specific test category
          -  **Returns:**
+           
            .. code-block:: json
 
                {"status": "ok"}

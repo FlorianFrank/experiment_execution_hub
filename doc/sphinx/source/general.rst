@@ -1,6 +1,5 @@
 .. include:: definitions.rst
-   
-
+    
 This repository contains the implementation of a generic test execution hub, enabling the creation of test templates, the scheduling of test instances, device discovery, filtering, and comprehensive evaluation. Initially developed for automating the execution and assessment of diverse Physical Unclonable Functions (PUFs), the platform was adjusted to support the generic execution of virtually any test type.
 
 .. image:: ../../figures/structure_overview.jpg
