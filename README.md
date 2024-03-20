@@ -5,6 +5,9 @@
 
 This repository contains the implementation of a generic test execution hub, enabling the creation of test templates, the scheduling of test instances, device discovery, filtering, and comprehensive evaluation. Initially developed for automating the execution and assessment of diverse Physical Unclonable Functions (PUFs), the platform was adjusted to support the generic execution of virtually any test type.
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Static Badge](https://img.shields.io/badge/website-test%20automation-blue)](http://test-automation.florian-frank.com)
+
+
 ## Key features
 
 - **Test template definition:** Test templates can be defined by a json description language. The framework automatically generates the corresponding database schema and GUI elements.
