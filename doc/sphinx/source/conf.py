@@ -10,9 +10,19 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
+import os
+import sys
+import django
+sys.path.insert(0, os.path.abspath('../../..'))
+sys.path.insert(0, os.path.abspath('../../../test_hub_backend'))
+sys.path.insert(0, os.path.abspath('.'))
+
+
+# This tells Django where to find the settings file
+os.environ["DJANGO_SETTINGS_MODULE"] = "django_settings"
+# This activates Django and makes it possible for Sphinx to
+# autodoc your project
+django.setup()
 
 
 # -- Project information -----------------------------------------------------
@@ -31,6 +41,9 @@ release = '1.0'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+'sphinx.ext.autodoc',
+"sphinx.ext.napoleon",
+"sphinx.ext.viewcode"
 ]
 
 # Add any paths that contain templates here, relative to this directory.
