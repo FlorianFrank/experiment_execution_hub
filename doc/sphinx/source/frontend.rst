@@ -164,3 +164,14 @@ The current visualizer supports matplotlib, stored as json files, which can be d
 
 |br|
 
+
+Wafer visualizer
+^^^^^^^^^^^^^^^^
+
+It is also possible to evaluate wafers, such as those used for carbon nanotube field-effect transistors. To facilitate this, a dedicated wafer visualization component was developed.
+
+.. image:: ../../figures/frontend/wafer_visualizer.png
+    :width: 100%
+    :align: center
+
+|br|
