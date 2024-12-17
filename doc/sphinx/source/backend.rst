@@ -430,7 +430,7 @@ Consequently, the interface offers the following endpoints, which must be implem
 
             .. code-block:: json
 
-               todo
+               {}
 
    - Topic: **get_devices**: Payload: Device info following the configuration json file. 
 
@@ -438,7 +438,7 @@ Consequently, the interface offers the following endpoints, which must be implem
 
             .. code-block:: json
 
-               todo
+               {}
 
    - Topic: **stream_data**: Payload: Streaming data as array to be visualized at the frontend.
 
@@ -446,7 +446,7 @@ Consequently, the interface offers the following endpoints, which must be implem
 
             .. code-block:: json
 
-               todo
+               {}
 
 
 
