@@ -284,119 +284,91 @@ which handle the requested evaluation and visualization tasks independently from
 visualizers cannot be accomplished through simple JSON configuration files. Matplotlib library serves as the standard tool for all visualizations.
 
 In order to establish a seenkess interaction with the frontend and generate artifacts such as vector graphics for visualization and JSON files for evaluation results, a template class is introduced. 
-Visualizers must inherit from this template class to ensure a standardized interface for execution.
+Visualizers must inherit from this template class to ensure a standardized interface for execution. Therefore three methods must be implemented: 
+- prepare_evaluation_data: 
+   - **prepare_evaluation_data:** Apply the post-processing required for the evaluation and visualization only once. This requires a duplicate execution, e.g. of quantization algorithms
+   for the visualization and evaluation task. 
+   - **run_visualization:** Executes the visualization algorithm based on the prepared evaluation data. The 
 
-TODO:
-Develop a generic adapter to connect with PostgreSQL databases hosting measurement results. This adapter should operate independently from the database responsible for storing the application's state.
+**TODO:**
+- Develop a generic adapter to connect with PostgreSQL databases hosting measurement results. This adapter should operate independently from the database responsible for storing the application's state.
 
 
 .. code-block:: python
 
    import json
-   import threading
-   from datetime import datetime
+   import logging
 
-   from evaluation_manager.evaluation_models.general import EvaluationStatus, Visualizations
-   from evaluation_manager.evaluation_runner.evaluation_handler.cnt_puf_evaluation_handler import CNTPUFEvaluator
+   import mpld3
 
-   from config.evaluation_config import *
+   from evaluation_runner.evaluation_handler.file_export_handler import FileExportHandler
+   from evaluation_manager.utils.np_encoder import NpEncoder
 
 
-   class EvaluationRunner:
+   class EvaluationHandler:
       """
-      This class contains the functionality to  outsource visualization and post-processing tasks in dedicated threads,
-      executed in the background. This allows a decoupling of computation intense visualization tasks and the main thread
-      of the backend server.
+      Base class implementing functionality that all evaluation runners must implement.
       """
 
-      def __init__(self, logger, eval_status: EvaluationStatus, visualization_type: str, visualization_properties: dict):
-         """
-         Initialize EvaluationRunner instance.
+      def __init__(self, logger: logging.Logger, evaluation_status_id: int, db_name: str, visualization_properties: dict):
+         self._evaluation_type = ''
+         self._identifier = 0
+         self._evaluation_dict = None
+         self._logger = logger
+         self._evaluation_status_id = evaluation_status_id
+         self._db_name = db_name
+         self._visualization_properties = visualization_properties
+         self._prepared_measurements: None
 
-         Parameters:
-               logger: Logger object for logging messages.
-               eval_status (EvaluationStatus): Evaluation status object.
-               visualization_type (str): Type of visualization.
-               visualization_properties (dict): Properties for visualization.
+      def prepare_evaluation_data(self):
          """
-         self.logger = logger
-         self.evaluation_status = eval_status
-         self.visualization_type = visualization_type
-         self.visualization_properties = visualization_properties
-         self._visualizer_thread = threading.Thread(target=self._visualizer_thread_function, args=())
-         self.output_json_objects = []
-         self.output_evaluation_dict = []
-
-      def run(self):
+         This function can be overwritten by a deriving visualizer.
+         It allows the generation of prepared evaluation data. In order to not run
+         the same algorithms twice for visualization and evaluation.
+         If run_visualization and run_evaluation are independent, this function don't need to be implemented.
+         :return: None
          """
-         Starts the visualization runner thread.
+         pass
+
+      def run_visualization(self):
          """
-         self.logger.info('Start Visualization runner')
-         self._visualizer_thread.daemon = True
-         self._visualizer_thread.start()
-
-      def visualize(self):
+         This function must be overwritten by its derived visualizer!
+         Should execute all necessary actions turning input measurement data into a matplotlib visualization in
+         json format.
+         :return: None
          """
-         Perform visualization based on the visualization type.
-         TODO: Enable dynamic extension of evaluation configuration.
+         pass
+
+      def run_evaluation(self):
          """
-         cnt_fet_runner = CNTPUFEvaluator(self.logger)
-
-         if self.visualization_type == VISUALIZATION_TYPE_RAW_FIGURE:
-               self.output_evaluation_dict, self.output_json_objects = \
-                  cnt_fet_runner.get_raw_evaluation_visualization_result(self.evaluation_status.id, DATABASE_NAME,
-                                                                        self.visualization_properties)
-         elif self.visualization_type == VISUALIZATION_TYPE_WAFER_OVERVIEW:
-               self.output_evaluation_dict, self.output_json_objects = cnt_fet_runner.visualize_wafer_overview(
-                  self.evaluation_status.id, DATABASE_NAME, self.visualization_properties)
-               # TODO don't use these dummy values!!
-               self.output_evaluation_dict = [{'id': 0, 'wafer': 2, 'row': 3, 'column': 2, 'pufID': 5,
-                                             'nrSelectedCells': 144, 'nrConductiveCells': 30,
-                                             'nrNonConductiveCells': 100,
-                                             'nrSemiConductiveCells': 14, 'hammingWeight': 0.9}]
-
-         return bool(self.output_evaluation_dict and self.output_json_objects)
-
-      def _visualizer_thread_function(self):
+         This function must be overwritten by its derived visualizer!
+         This function calculates the visualization results which can be visualized in a table.
+         :return: None
          """
-         Execution function within the visualizer thread tasked to decouple computationally intensive visualization
-         from the main application.
+         pass
+
+      def generate_export_artifacts(self):
+         """Generate output artifacts, such as figures in PDF format or tables stored as JSON.
+            Finally, these artifacts are zipped and can be downloaded from the GUI.
+
+            :return: None
          """
-         try:
-               self.logger.info('Start Visualization thread')
-               self.evaluation_status.status = STATUS_RUNNING
+         file_exporter = FileExportHandler(logger=self._logger, evaluation_identifier=self._identifier,
+                                             evaluation_type=self._evaluation_type,
+                                             evaluation_results=self._evaluation_dict)
+         file_exporter.store_evaluation_results()
+         file_exporter.create_zip_folder()
 
-               if self.visualize():
-                  for output_json in self.output_json_objects:
-                     self._save_visualization_result(output_json)
-                     self.evaluation_status.status = STATUS_FINISHED
-                     self.logger.info('Evaluation successful')
-               else:
-                  self.evaluation_status.status = STATUS_FAILED
-
-         except Exception as e:
-               self.logger.error(f'Evaluation failed: {e}')
-               self.evaluation_status.status = STATUS_FAILED
-         finally:
-               self.logger.info('Update Evaluation object')
-               self.evaluation_status.stopTime = datetime.now()
-               self.evaluation_status.save()
-
-      def _save_visualization_result(self, output_json):
+      @staticmethod
+      def transform_matplot_fig_to_dict(fig) -> json:
+         """Turns a matplotlib figure to json which can be stored in the database and visualized using d3 on a
+         javascript frontend.
+         :param fig: Matplotlib figure which is transformed into json.
+         :return: output json object, representing the figure.
          """
-         Stores the visualization object in json format allowing for a seamless visualization in the frontend.
-         E.g. using the d3-library.
+         html_str = mpld3.fig_to_dict(fig)
+         return json.dumps(html_str, cls=NpEncoder)
 
-         :param output_json: json-object representing the visualization.
-         :return:None.
-         """
-         visualizations = Visualizations(
-               evaluationStatus=self.evaluation_status,
-               visualizationType=self.visualization_type,
-               resultObject=json.dumps(self.output_evaluation_dict),
-               json=output_json
-         )
-         visualizations.save()
 
 
 Generic Messaging Service Endpoints
@@ -421,7 +393,7 @@ Consequently, the interface offers the following endpoints, which must be implem
 
             .. code-block:: json
 
-               todo
+               {}
 
    - Topic: **get_test_status** Payload: Porvides the test id and the current state of the execution in percentage. 
 
@@ -430,7 +402,7 @@ Consequently, the interface offers the following endpoints, which must be implem
 
             .. code-block:: json
 
-               todo
+               {}
 
    - Topic: **get_devices**: Payload: Device info following the configuration json file. 
 
@@ -438,7 +410,7 @@ Consequently, the interface offers the following endpoints, which must be implem
 
             .. code-block:: json
 
-               todo
+               {}
 
    - Topic: **stream_data**: Payload: Streaming data as array to be visualized at the frontend.
 
@@ -446,7 +418,7 @@ Consequently, the interface offers the following endpoints, which must be implem
 
             .. code-block:: json
 
-               todo
+               {}
 
 
 
