@@ -421,7 +421,7 @@ Consequently, the interface offers the following endpoints, which must be implem
 
             .. code-block:: json
 
-               todo
+               {}
 
    - Topic: **get_test_status** Payload: Porvides the test id and the current state of the execution in percentage. 
 
