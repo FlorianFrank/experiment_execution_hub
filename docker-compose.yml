@@ -4,34 +4,38 @@ services:
   nats:
     image: nats:latest
     container_name: nats_server
-    command: "--cluster_name NATS --cluster nats://0.0.0.0:6222 --http_port 8222 "
-    networks: ["nats_network"]
+    command: "--cluster_name NATS --cluster nats://0.0.0.0:6222 --http_port 8222"
+    networks:
+      - nats_network
     ports:
       - '6222:6222'
       - '8222:8222'
+      - '4222:4222'
 
   test_hub_frontend:
     build: ./test_hub_frontend
     container_name: test_hub_frontend
     ports:
       - '3000:3000'
-    volumes:
-      - ./test_hub_frontend:/app
+    #volumes:
+     # - ./test_hub_frontend:/app
       # Consider removing the next line if unnecessary
-      - /app/node_modules
+      #- /app/node_modules
+    networks:
+      - nats_network
 
   test_hub_backend:
     build: ./test_hub_backend
     container_name: test_hub_backend
-    network_mode: host
     depends_on:
       - nats
     ports:
       - '8000:8000'
-    volumes:
-      - ./test_hub_backend:/app
+    #volumes:
+     # - ./test_hub_backend:/app
+    networks:
+      - nats_network
 
 networks:
   nats_network:
     name: nats_network
-
