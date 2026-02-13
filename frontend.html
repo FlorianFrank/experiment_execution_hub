@@ -1,0 +1,232 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Graphical User Interface &mdash; Test Execution Hub 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="_static/custom.css?v=a6a68382" />
+      <link rel="stylesheet" type="text/css" href="_static/fonts.css?v=5583d106" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="_static/doctools.js?v=9a2dae69"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Test Execution Hub
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"><ul>
+<li><a class="reference internal" href="#">Graphical User Interface</a><ul>
+<li><a class="reference internal" href="#setup">Setup</a></li>
+<li><a class="reference internal" href="#gui-elements">GUI Elements</a><ul>
+<li><a class="reference internal" href="#dashboard">Dashboard</a></li>
+<li><a class="reference internal" href="#device-manager">Device Manager</a></li>
+<li><a class="reference internal" href="#test-template-generation">Test template generation</a></li>
+<li><a class="reference internal" href="#scheduling-of-tests">Scheduling of Tests</a></li>
+<li><a class="reference internal" href="#test-selection-and-filtering">Test Selection and Filtering</a></li>
+<li><a class="reference internal" href="#evaluation-of-raw-results">Evaluation of Raw Results</a></li>
+<li><a class="reference internal" href="#wafer-visualizer">Wafer visualizer</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Test Execution Hub</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Graphical User Interface</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/frontend.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="graphical-user-interface">
+<h1>Graphical User Interface<a class="headerlink" href="#graphical-user-interface" title="Link to this heading"></a></h1>
+<p>The implementation provides a web interface implemented in <a class="reference external" href="https://react.dev/">React</a> utilizing <a class="reference external" href="https://mui.com/">Material UI</a> components.
+To install the packages manually the tools yarn or npm can be used. We recomment to use yarn to to its parallel installation and overall better performance.</p>
+<section id="setup">
+<h2>Setup<a class="headerlink" href="#setup" title="Link to this heading"></a></h2>
+<p>First nodejs and npm needs to be installed to build the application</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>nodejs<span class="w"> </span>npm
+</pre></div>
+</div>
+<p>when using yarn as a build tool, execute the following command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>npm<span class="w"> </span>install<span class="w"> </span>--global<span class="w"> </span>yarn
+</pre></div>
+</div>
+<p>To install the required packages, the following command must be executed directly in the test_hub_frontend:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>yarn
+</pre></div>
+</div>
+<p>After installing all packages in the node_modules folder, the gui can be started by the following command</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>yarn<span class="w"> </span>start
+</pre></div>
+</div>
+</section>
+<section id="gui-elements">
+<h2>GUI Elements<a class="headerlink" href="#gui-elements" title="Link to this heading"></a></h2>
+<p>After compiling the web application, the graphical user interface is accessable by <a class="reference external" href="https://localhost:8000/">localhost:3000</a>.
+If no current user session is running, the logging page is shown.</p>
+<a class="reference internal image-reference" href="_images/login_page.png"><img alt="_images/login_page.png" class="align-center" src="_images/login_page.png" style="width: 100%;" />
+</a>
+<p><br /></p>
+<p>If no user is created refer to <a class="reference external" href="https://localhost:8000/">Backend</a>
+Currently the dialog to register new users is not implemented and needs to be done manually in the test execution backend.</p>
+<section id="dashboard">
+<h3>Dashboard<a class="headerlink" href="#dashboard" title="Link to this heading"></a></h3>
+<p>After the logging the dashboard is visualized showing general information, like the connected devices. the currently scheduled tests, logging messages and performance information to
+monitor the backend or the visualization of live data, e.g. when measurement devices like SMUs or oscilloscopes are connected. The dashboard is organized as grid with three rows, and
+can be customized by adding or deleting certain widgets.</p>
+<a class="reference internal image-reference" href="_images/dashboard.png"><img alt="_images/dashboard.png" class="align-center" src="_images/dashboard.png" style="width: 100%;" />
+</a>
+<p><br /></p>
+</section>
+<section id="device-manager">
+<h3>Device Manager<a class="headerlink" href="#device-manager" title="Link to this heading"></a></h3>
+<p>The device manager allows the discovery of devices within the network.
+These devices or microservices are registered via the messaging service
+implemented in the backend, a detailed explanation of which will be provided in the backend chapter.</p>
+<p>Additionally, users have the option to manually add devices through the designated “Add Device Manually” button.
+After the device was added, a heartbeat signal is initiated over the specified interface, providing information
+about the current state of the device. Furthermore, device specific information is shown on the
+device info page.</p>
+<a class="reference internal image-reference" href="_images/devices.jpg"><img alt="_images/devices.jpg" class="align-center" src="_images/devices.jpg" style="width: 100%;" />
+</a>
+<p><br /></p>
+</section>
+<section id="test-template-generation">
+<h3>Test template generation<a class="headerlink" href="#test-template-generation" title="Link to this heading"></a></h3>
+<p>By clicking on “Add Template” a new test template can be added.
+The list of template classes is shown, which is automatically generated,
+benerated based on the configuration provided in the backend, explained later.</p>
+<p>By selecting the test template category, another auto generated  dialog is shown, based on the selected test template config from the backend.
+By pressing “Save” the template is added and can later be assigned to a test instance.</p>
+<a class="reference internal image-reference" href="_images/add_template.png"><img alt="_images/add_template.png" class="align-center" src="_images/add_template.png" style="width: 100%;" />
+</a>
+<p><br /></p>
+</section>
+<section id="scheduling-of-tests">
+<h3>Scheduling of Tests<a class="headerlink" href="#scheduling-of-tests" title="Link to this heading"></a></h3>
+<p>After saving the test template the user gets forwarded to the test Schedule page. There a test instance is generated, by selecting a test template and
+assigning an executor, as well as a sample instance to it. These three components form a test instance which can be scheduled, by pressing “Schedule”.
+This adds the test to the queue of scheduled test of the executor, running a micro-service. When selecting multiple iterations. Each iteration is executed
+sequentially in the test queue. If multiple test templates are scheduled on multiple executers, the assignment and execution is fully parallel.</p>
+<p>After saving the test template, users are redirected to the Test Schedule page, where a test instance is created.
+This process involves selecting a test template, assigning an executor, and attaching a sample instance.
+Together, these elements form a test instance, which can be scheduled by clicking “Schedule”.
+Once scheduled, the test is added to the queue of scheduled tests managed by a micro-service running in the background.</p>
+<p>For multiple iterations, each iteration is executed sequentially within the test queue.
+If multiple test templates are scheduled across multiple executors, the assignment and execution processes operate in full parallelism,
+ensuring efficient handling of tasks.</p>
+<p>The status of each test execution can be seen on the Status page. Here also live plot components should be added. (Currently not implemented)</p>
+</section>
+<section id="test-selection-and-filtering">
+<h3>Test Selection and Filtering<a class="headerlink" href="#test-selection-and-filtering" title="Link to this heading"></a></h3>
+<p>Mesurement results are stored in a seperated Postgres database, which supports a seperation between the
+measurement data and the states and config of the GUI and backend. This mechanism is explained in the backend
+chapter. On the Evaluation Selection Page, multiple measurements can be selected for further analysis and
+visualization.</p>
+<a class="reference internal image-reference" href="_images/test_selection.png"><img alt="_images/test_selection.png" class="align-center" src="_images/test_selection.png" style="width: 100%;" />
+</a>
+<p><br /></p>
+<p>Based on the selected measurements, differnet post-processing and visualization algorithms
+are suggested, which can be customized. The visualization is executed by dedicated evaluation runner in the
+backend.</p>
+<a class="reference internal image-reference" href="_images/raw_visualizer.png"><img alt="_images/raw_visualizer.png" class="align-center" src="_images/raw_visualizer.png" style="width: 100%;" />
+</a>
+<p><br /></p>
+</section>
+<section id="evaluation-of-raw-results">
+<h3>Evaluation of Raw Results<a class="headerlink" href="#evaluation-of-raw-results" title="Link to this heading"></a></h3>
+<p>In the results view, the current state of the visualizer runner in the backend is visualized.
+After finishing the visualization and post-processing, the result can be displayed.</p>
+<p>Currently the visualization algorithms supported by the runner are hardcoded. We are working towards
+generalization of the visualizer and post-processors, configurable with json files as well.
+The current visualizer supports matplotlib, stored as json files, which can be displayed utilizing the d3 library.</p>
+<a class="reference internal image-reference" href="_images/raw_evaluation.png"><img alt="_images/raw_evaluation.png" class="align-center" src="_images/raw_evaluation.png" style="width: 100%;" />
+</a>
+<p><br /></p>
+</section>
+<section id="wafer-visualizer">
+<h3>Wafer visualizer<a class="headerlink" href="#wafer-visualizer" title="Link to this heading"></a></h3>
+<p>It is also possible to evaluate wafers, such as those used for carbon nanotube field-effect transistors. To facilitate this, a dedicated wafer visualization component was developed.</p>
+<a class="reference internal image-reference" href="_images/wafer_visualizer.png"><img alt="_images/wafer_visualizer.png" class="align-center" src="_images/wafer_visualizer.png" style="width: 100%;" />
+</a>
+<p><br /></p>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Florian Frank, Abderrazzak El Khayari, Alexander Braml.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,133 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Key features &mdash; Test Execution Hub 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="_static/custom.css?v=a6a68382" />
+      <link rel="stylesheet" type="text/css" href="_static/fonts.css?v=5583d106" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="_static/doctools.js?v=9a2dae69"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Test Execution Hub
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"><ul>
+<li><a class="reference internal" href="#">Key features</a></li>
+<li><a class="reference internal" href="#architectural-overview">Architectural Overview</a></li>
+<li><a class="reference internal" href="#license">License</a></li>
+</ul>
+</div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Test Execution Hub</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Key features</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/general.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <p>This repository contains the implementation of a generic test execution hub, enabling the creation of test templates, the scheduling of test instances, device discovery, filtering, and comprehensive evaluation. Initially developed for automating the execution and assessment of diverse Physical Unclonable Functions (PUFs), the platform was adjusted to support the generic execution of virtually any test type.</p>
+<a class="reference internal image-reference" href="_images/structure_overview.jpg"><img alt="_images/structure_overview.jpg" class="align-center" src="_images/structure_overview.jpg" style="width: 100%;" />
+</a>
+<p><br /></p>
+<section id="key-features">
+<h1>Key features<a class="headerlink" href="#key-features" title="Link to this heading"></a></h1>
+<ul class="simple">
+<li><p><strong>Test template definition:</strong> Test templates can be defined by a json description language. The framework automatically generates the corresponding database schema and GUI elements.</p></li>
+<li><p><strong>Devices management:</strong> Devices are required to execute a certain test instance. A device management plugin was implemented, allowing either the automatic discovery of devices in the network and a management platform for manually added devices.</p></li>
+<li><p><strong>Test scheduling:</strong> The platform enables the scheduling of tests on instances given a certain test template. Each test instance is executed by a device listed in the device management plugin. The platform supports the simultaneous scheduling and monitoring of multiple tests, enhancing efficiency and flexibility in test execution.</p></li>
+<li><p><strong>Test result management:</strong> This component allows the management and filtering of test results, generated by a test instance. Users can selectively choose tests, apply post-processors, utilize visualizers, and employ evaluation algorithms to the list of selected results.</p></li>
+<li><p><strong>Seamless Integration with Existing Measurement Data:</strong> Already existing measure data can be uploaded annotated and integrated with the measurement database.</p></li>
+<li><p><strong>Data Post-processing and Visualization Capabilities:</strong> Define post-processing, evaluation, and visualization algorithms to enable interactive assessment of measurements. This feature facilitates the exploration and analysis of results, with the ability to export them as vector graphics for further use.</p></li>
+</ul>
+</section>
+<section id="architectural-overview">
+<h1>Architectural Overview<a class="headerlink" href="#architectural-overview" title="Link to this heading"></a></h1>
+<p>We use a generic design allowing easy extension, replacement, and maintenance of different components. In general, the architecture is composed of three different layers:</p>
+<ul class="simple">
+<li><p><strong>Frontend:</strong> Currently implemented as a web application, the frontend allows user interaction through a single-page application (SPA).</p></li>
+<li><p><strong>Backend:</strong> Responsible for managing the frontend’s state, database access, and test execution, the backend communicates with the frontend via a REST API. It efficiently schedules tests across multiple microservices, establishing connections through the NATS messaging service.</p></li>
+<li><p><strong>Test microservice:</strong> Multiple microservices operate as individual execution instances, enabling the independent execution of tests that the backend schedules on specific devices using a sample. In the case of memory-based PUFs, the memory module serves as the sample, connected to the device, such as a microcontroller. This modular design enhances flexibility and scalability within the system architecture.</p></li>
+</ul>
+</section>
+<section id="license">
+<h1>License<a class="headerlink" href="#license" title="Link to this heading"></a></h1>
+<p>Unless otherwise noted, the source files are distributed under the MIT license found in the LICENSE file.</p>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Florian Frank, Abderrazzak El Khayari, Alexander Braml.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,944 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Backend &mdash; Test Execution Hub 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="_static/custom.css?v=a6a68382" />
+      <link rel="stylesheet" type="text/css" href="_static/fonts.css?v=5583d106" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="_static/doctools.js?v=9a2dae69"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Test Execution Hub
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"><ul>
+<li><a class="reference internal" href="#">Backend</a><ul>
+<li><a class="reference internal" href="#database-structure">Database Structure</a><ul>
+<li><a class="reference internal" href="#automated-test-scheme-implementation">Automated test scheme implementation</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#definition-of-evaluations-and-visualizers">Definition of Evaluations and Visualizers</a></li>
+<li><a class="reference internal" href="#generic-messaging-service-endpoints">Generic Messaging Service Endpoints</a></li>
+<li><a class="reference internal" href="#rest-endpoints">REST Endpoints</a></li>
+</ul>
+</li>
+</ul>
+</div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Test Execution Hub</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Backend</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/backend.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="backend">
+<h1>Backend<a class="headerlink" href="#backend" title="Link to this heading"></a></h1>
+<p>This application provides the backend REST service for the <a class="reference external" href="https://github.com/FlorianFrank/puf_frontend">PUF
+Frontend</a>. It stores
+the state of the GUI, connects to the Postgres databases storing CNT PUF
+and memory PUF measurements. It additionally contains background runners
+for evaluation and visualization tasks. It additionally provides
+authentication functionality, a NATS client to delegate tests to
+specific devices and direct access to the <a class="reference external" href="https://github.com/FlorianFrank/generic_test_framework">Generic Test
+Framework</a>.</p>
+<section id="database-structure">
+<h2>Database Structure<a class="headerlink" href="#database-structure" title="Link to this heading"></a></h2>
+<p>In general, the backend implementation relies on a straightforward database schema, as illustrated in the following figure.</p>
+<a class="reference internal image-reference" href="_images/database_schema.jpg"><img alt="_images/database_schema.jpg" class="align-center" src="_images/database_schema.jpg" style="width: 100%;" />
+</a>
+<p><br /></p>
+<p>Test execution can be categorized into three basic groups. First, the ‘sample under test’ represents the component on which the test is performed.
+For instance, in the case of memory-based PUFs, the sample would be the memory module.
+The second group encompasses the definition of the test itself, specifying the parameters and conditions for its execution. For example, this includes defining row-hammering tests.
+The third class describes the executing entity responsible for the execution of the test on a given sample, for example a memory controller executing a test on a specific sample.
+This database schema is automatically generated from a json configuration, explained later. Also the frontend GUI is adopted dynamically to this scheme.</p>
+<p>Each of these groups has specific tables to store their respective templates.
+For instance a Sample config for a memory based PUF describes that a memory must have an address bus a data bus, etc.
+Whereas the Sample template describes a memory of specific properties, e.g. a SRAM memory module of a certain manufacturer with a set of properties.
+Instances of these memory modules are stored in the ‘Sample Instance’ table.</p>
+<p>This structure also applies to the ‘Tests’ category. Here, a ‘Test Template’ defines the parameters of a specific test, like a row-hammering test.
+A Test Instance refers to the actual execution of a test template on a particular sample.</p>
+<p>The definition of devices is slightly more complicated, as multiple devices may be necessary to execute a single test. For instance, conducting measurements, may require a micro-controller,
+a function generatorand an oscilloscope. These devices are defined as devices, based on a device template. All these devices are connected by a executer instance responsible, for the
+execution of a test instance.</p>
+<p>A sample configuration for a carbon-nanotube based PUF implementation can be seen in the following sample:</p>
+<a class="reference internal image-reference" href="_images/database_example.jpg"><img alt="_images/database_example.jpg" class="align-center" src="_images/database_example.jpg" style="width: 100%;" />
+</a>
+<p><br /></p>
+<section id="automated-test-scheme-implementation">
+<h3>Automated test scheme implementation<a class="headerlink" href="#automated-test-scheme-implementation" title="Link to this heading"></a></h3>
+<p>Within the backend it is possible to add new test categories, sample types or device classes without writing a single line of code. We provide a json definition,
+which allows the automatic generation of the database scheme, as well as a dynamic adoption of the GUI elements in the frontend.</p>
+<p>The config files must be added to the config folder in the backend and will be automatically discovered parsed and the database scheme and GUI adjustment will be done.</p>
+<p>Within this folder a tests_config.json defines the different test categories:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="nt">&quot;test_categories&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">   </span><span class="nt">&quot;cnt_puf&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Carbon Nanotube Tests&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;folder&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cnt_puf&quot;</span>
+<span class="w">   </span><span class="p">},</span>
+<span class="w">   </span><span class="nt">&quot;memory&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Memory Tests&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;folder&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;memory&quot;</span>
+<span class="w">   </span><span class="p">},</span>
+<span class="w">   </span><span class="nt">&quot;script&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Script Tests&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;folder&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;script&quot;</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">   </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>To add a new test category a new entry like</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="nt">&quot;sample_category&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Sample Category&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;folder&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;sample_category&quot;</span>
+<span class="w">   </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>must be added.</p>
+<p>Afterwards, the following folder structure must be established according to the database configuration as shown above.</p>
+<a class="reference internal image-reference" href="_images/config_folder_structure.png"><img alt="_images/config_folder_structure.png" class="align-center" src="_images/config_folder_structure.png" style="width: 50%;" />
+</a>
+<p><br /></p>
+<ul class="simple">
+<li><p>The <strong>tests</strong> folder contains configurations for all test templates, along with optional additional tooltips for the configuration parameters.</p></li>
+<li><p>The <strong>samples</strong> folder contains all sample configuration files, defining the structure of sample instances and templates.</p></li>
+<li><p>The <strong>db_model</strong> binds to gether all configurations of a category. It specifies which sample aligns with which template, among other connections.</p></li>
+</ul>
+<p>To introduce new test templates, a “templates” folder must be added within the designated folder of the respective test category. Inside this folder, a “tests” directory is created.
+For instance, in the case of row-hammering tests, the configuration is defined as follows:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="nt">&quot;start_address&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
+<span class="nt">&quot;stop_address&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1000000</span><span class="p">,</span>
+<span class="nt">&quot;initialization_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">85</span><span class="p">,</span>
+<span class="nt">&quot;write_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">170</span><span class="p">,</span>
+<span class="nt">&quot;hammer_iterations&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">100</span><span class="p">,</span>
+<span class="nt">&quot;address_offset&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">16</span><span class="p">,</span>
+<span class="nt">&quot;temperature&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">20</span><span class="p">,</span>
+<span class="nt">&quot;humidity&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
+<span class="nt">&quot;supply_voltage&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">3.3</span><span class="p">,</span>
+<span class="nt">&quot;iterations&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The backend automatically parses this config and creates the database and GUI elements. The provided values are set as default parameters.
+Furthermore, this JSON format is compatible with our comprehensive test execution framework, which will be elaborated on later.</p>
+<p>Moreover, users have the option to append additional tooltips by including a file with identical naming within the designated tooltips folder.
+These tooltips are then displayed within the GUI, enabling supplementary descriptions of test parameters.
+For example, in the context of row-hammering tests, a “rowHammering.json” file would be added to the tooltips folder containing the following content:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="nt">&quot;start_address&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Start address of the memory module (maximum 32-bit, e.g., 0x00000000)&quot;</span><span class="p">,</span>
+<span class="nt">&quot;stop_address&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Stop address of the memory module (maximum 32-bit, e.g., 0xffffffff). If this value exceeds the address space, the test is executed until the last address in the address space.&quot;</span><span class="p">,</span>
+<span class="nt">&quot;initialization_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Value to write to the memory module (maximum 32-bit, e.g., 0x55555555).&quot;</span><span class="p">,</span>
+<span class="nt">&quot;hammer_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Value written during the row-hammering operation.&quot;</span><span class="p">,</span>
+<span class="nt">&quot;hammer_iterations&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Number of write iterations for each row-hammering iteration.&quot;</span><span class="p">,</span>
+<span class="nt">&quot;address_offset&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;When no address mapping is available, always hammer &#39;Address Offset&#39; cells and evaluate the next &#39;Address Offset&#39; ones.&quot;</span><span class="p">,</span>
+<span class="nt">&quot;temperature&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Only applicable if a climate chamber is available.&quot;</span><span class="p">,</span>
+<span class="nt">&quot;humidity&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Only applicable if a climate chamber is available.&quot;</span><span class="p">,</span>
+<span class="nt">&quot;supply_voltage&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Supply voltage of the memory module. Only applicable if a power supply is connected.&quot;</span><span class="p">,</span>
+<span class="nt">&quot;iterations&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Number of iterations for this test.&quot;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Now we want to specify the samples on which we want to apply a certain test template. To accomplish this, we need to establish a sample folder.
+Within this folderthe sample template, as well as the definition of a sample instance is stored. Those are subdivided into two files
+whreas a sample sample template for memory modules can be defined as follows:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;None&quot;</span><span class="p">,</span>
+<span class="nt">&quot;manufacturer&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;None&quot;</span><span class="p">,</span>
+<span class="nt">&quot;model&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;None&quot;</span><span class="p">,</span>
+<span class="nt">&quot;start_address&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
+<span class="nt">&quot;stop_address&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
+<span class="nt">&quot;data_width&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">16</span><span class="p">,</span>
+<span class="nt">&quot;address_width&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">32</span><span class="p">,</span>
+<span class="nt">&quot;write_cycle_time&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
+<span class="nt">&quot;read_cycle_time&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>When incorporating a distinct test template, the attributes may vary significantly.
+The data type for database creation is generated automatically. <strong>Caution:</strong> For float fields, it’s essential to specify float
+numbers, such as 0.0 instead of 0, to ensure the creation of a float field; otherwise, an integer field will be
+generated.</p>
+<p>Furthermore, alongside the template, an instance must be included. In this example, the memroyInstance.json simply adds a reference to the template and a specific identifier.
+Further fields can be added, simultanously to the template generation.</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="nt">&quot;template&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">   </span><span class="nt">&quot;ref&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MemoryTemplate&quot;</span>
+<span class="p">},</span>
+<span class="nt">&quot;memory_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Ultimately, a  configuration file must be specified combining all the configurations.
+This alows to reuse sample configurations across multiple tests, or conversely, allows various tests to utilize the same sample configurations.
+The following config defines the different tables for row-hammering tests.
+The provided configuration delineates the distinct tables for row-hammering tests. Each test is identified by an
+identifier and a name, both displayed within the GUI. The GUI filter section enables the arrangement of elements
+into different groups on the GUI. For instance, fields containing addresses are automatically assigned to the
+address group, identifiers containing data are allocated to the data group, and any remaining elements are
+categorized under the “other” group.</p>
+<p>In the following the different tables are defined. Here we can find all tables as defined in the
+figure showing the database scheme, except the device and executor tables which are generated by user
+interaction from the GUI.</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">   </span><span class="nt">&quot;identifier&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;rowHammering&quot;</span><span class="p">,</span>
+<span class="w">   </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Row Hammering Tests&quot;</span><span class="p">,</span>
+<span class="w">   </span><span class="nt">&quot;category&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;memory&quot;</span><span class="p">,</span>
+<span class="w">   </span><span class="nt">&quot;gui_filter&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">      </span><span class="p">{</span>
+<span class="w">         </span><span class="nt">&quot;identifier&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;address&quot;</span><span class="p">,</span>
+<span class="w">         </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Address&quot;</span>
+<span class="w">      </span><span class="p">},</span>
+<span class="w">      </span><span class="p">{</span>
+<span class="w">         </span><span class="nt">&quot;identifier&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;value&quot;</span><span class="p">,</span>
+<span class="w">         </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Data&quot;</span>
+<span class="w">      </span><span class="p">},</span>
+<span class="w">      </span><span class="p">{</span>
+<span class="w">         </span><span class="nt">&quot;identifier&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;other&quot;</span><span class="p">,</span>
+<span class="w">         </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Other&quot;</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">   </span><span class="p">],</span>
+<span class="w">   </span><span class="nt">&quot;tables&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">      </span><span class="p">{</span>
+<span class="w">         </span><span class="nt">&quot;db_name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;RowHammeringTemplate&quot;</span><span class="p">,</span>
+<span class="w">         </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;testtemplate&quot;</span><span class="p">,</span>
+<span class="w">         </span><span class="nt">&quot;schema&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;rowHammering.json&quot;</span><span class="p">,</span>
+<span class="w">         </span><span class="nt">&quot;fields&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">         </span><span class="p">}</span>
+<span class="w">      </span><span class="p">},</span>
+<span class="w">      </span><span class="p">{</span>
+<span class="w">         </span><span class="nt">&quot;db_name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MemoryTemplate&quot;</span><span class="p">,</span>
+<span class="w">         </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;sampleTemplate&quot;</span><span class="p">,</span>
+<span class="w">         </span><span class="nt">&quot;schema&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;memoryTemplate.json&quot;</span><span class="p">,</span>
+<span class="w">         </span><span class="nt">&quot;fields&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">         </span><span class="p">}</span>
+<span class="w">      </span><span class="p">},</span>
+<span class="w">      </span><span class="p">{</span>
+<span class="w">         </span><span class="nt">&quot;db_name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MemoryInstance&quot;</span><span class="p">,</span>
+<span class="w">         </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;sample&quot;</span><span class="p">,</span>
+<span class="w">         </span><span class="nt">&quot;schema&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;memoryInstance.json&quot;</span><span class="p">,</span>
+<span class="w">         </span><span class="nt">&quot;fields&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">         </span><span class="p">}</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">   </span><span class="p">]</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>After specififying the configuration, the database scheme must be generated calling the following command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>./utils/db_schema_generator.py
+</pre></div>
+</div>
+<p>This command will add a generated folder in the test_manager app. <strong>Caution:</strong> Already generated models will not be overwritten,
+when modifying an already existing config, make sure you delete the corresponding python file beforehand.
+Furthermore, this will only generate the models without migrating them. The migration requires the execution of the commands:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>manage.py<span class="w"> </span>makemigrations
+python3<span class="w"> </span>manage.py<span class="w"> </span>migrate
+</pre></div>
+</div>
+<p>To execute all commands in one step, the following shell script can be exectued:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>.<span class="se">\r</span>edo_migrations.sh
+</pre></div>
+</div>
+<p><strong>Caution:</strong> This command also deletes the local sqlite database, deleting all samples and templates. The database storing the
+measurement results is not touched.</p>
+</section>
+</section>
+<section id="definition-of-evaluations-and-visualizers">
+<h2>Definition of Evaluations and Visualizers<a class="headerlink" href="#definition-of-evaluations-and-visualizers" title="Link to this heading"></a></h2>
+<p>To assess and present measurement results effectively, we require the definition of evaluators and visualizers. These components are executed by specific evaluation runners,
+which handle the requested evaluation and visualization tasks independently from the backend application, running in a separate thread. Due to the diverse parameters involved, the definition of
+visualizers cannot be accomplished through simple JSON configuration files. Matplotlib library serves as the standard tool for all visualizations.</p>
+<p>In order to establish a seenkess interaction with the frontend and generate artifacts such as vector graphics for visualization and JSON files for evaluation results, a template class is introduced.
+Visualizers must inherit from this template class to ensure a standardized interface for execution.</p>
+<p>TODO:
+Develop a generic adapter to connect with PostgreSQL databases hosting measurement results. This adapter should operate independently from the database responsible for storing the application’s state.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">threading</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">evaluation_manager.evaluation_models.general</span><span class="w"> </span><span class="kn">import</span> <span class="n">EvaluationStatus</span><span class="p">,</span> <span class="n">Visualizations</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">evaluation_manager.evaluation_runner.evaluation_handler.cnt_puf_evaluation_handler</span><span class="w"> </span><span class="kn">import</span> <span class="n">CNTPUFEvaluator</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">config.evaluation_config</span><span class="w"> </span><span class="kn">import</span> <span class="o">*</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">EvaluationRunner</span><span class="p">:</span>
+<span class="w">   </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">   This class contains the functionality to  outsource visualization and post-processing tasks in dedicated threads,</span>
+<span class="sd">   executed in the background. This allows a decoupling of computation intense visualization tasks and the main thread</span>
+<span class="sd">   of the backend server.</span>
+<span class="sd">   &quot;&quot;&quot;</span>
+
+   <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logger</span><span class="p">,</span> <span class="n">eval_status</span><span class="p">:</span> <span class="n">EvaluationStatus</span><span class="p">,</span> <span class="n">visualization_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">visualization_properties</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+<span class="w">      </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">      Initialize EvaluationRunner instance.</span>
+
+<span class="sd">      Parameters:</span>
+<span class="sd">            logger: Logger object for logging messages.</span>
+<span class="sd">            eval_status (EvaluationStatus): Evaluation status object.</span>
+<span class="sd">            visualization_type (str): Type of visualization.</span>
+<span class="sd">            visualization_properties (dict): Properties for visualization.</span>
+<span class="sd">      &quot;&quot;&quot;</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="n">logger</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">evaluation_status</span> <span class="o">=</span> <span class="n">eval_status</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">visualization_type</span> <span class="o">=</span> <span class="n">visualization_type</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">visualization_properties</span> <span class="o">=</span> <span class="n">visualization_properties</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_visualizer_thread</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_visualizer_thread_function</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">())</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">output_json_objects</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">output_evaluation_dict</span> <span class="o">=</span> <span class="p">[]</span>
+
+   <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">      </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">      Starts the visualization runner thread.</span>
+<span class="sd">      &quot;&quot;&quot;</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Start Visualization runner&#39;</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_visualizer_thread</span><span class="o">.</span><span class="n">daemon</span> <span class="o">=</span> <span class="kc">True</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_visualizer_thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+
+   <span class="k">def</span><span class="w"> </span><span class="nf">visualize</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">      </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">      Perform visualization based on the visualization type.</span>
+<span class="sd">      TODO: Enable dynamic extension of evaluation configuration.</span>
+<span class="sd">      &quot;&quot;&quot;</span>
+      <span class="n">cnt_fet_runner</span> <span class="o">=</span> <span class="n">CNTPUFEvaluator</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="p">)</span>
+
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">visualization_type</span> <span class="o">==</span> <span class="n">VISUALIZATION_TYPE_RAW_FIGURE</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">output_evaluation_dict</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_json_objects</span> <span class="o">=</span> \
+               <span class="n">cnt_fet_runner</span><span class="o">.</span><span class="n">get_raw_evaluation_visualization_result</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">evaluation_status</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">DATABASE_NAME</span><span class="p">,</span>
+                                                                     <span class="bp">self</span><span class="o">.</span><span class="n">visualization_properties</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">visualization_type</span> <span class="o">==</span> <span class="n">VISUALIZATION_TYPE_WAFER_OVERVIEW</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">output_evaluation_dict</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_json_objects</span> <span class="o">=</span> <span class="n">cnt_fet_runner</span><span class="o">.</span><span class="n">visualize_wafer_overview</span><span class="p">(</span>
+               <span class="bp">self</span><span class="o">.</span><span class="n">evaluation_status</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">DATABASE_NAME</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">visualization_properties</span><span class="p">)</span>
+            <span class="c1"># TODO don&#39;t use these dummy values!!</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">output_evaluation_dict</span> <span class="o">=</span> <span class="p">[{</span><span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;wafer&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;row&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;column&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;pufID&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+                                          <span class="s1">&#39;nrSelectedCells&#39;</span><span class="p">:</span> <span class="mi">144</span><span class="p">,</span> <span class="s1">&#39;nrConductiveCells&#39;</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span>
+                                          <span class="s1">&#39;nrNonConductiveCells&#39;</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span>
+                                          <span class="s1">&#39;nrSemiConductiveCells&#39;</span><span class="p">:</span> <span class="mi">14</span><span class="p">,</span> <span class="s1">&#39;hammingWeight&#39;</span><span class="p">:</span> <span class="mf">0.9</span><span class="p">}]</span>
+
+      <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_evaluation_dict</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_json_objects</span><span class="p">)</span>
+
+   <span class="k">def</span><span class="w"> </span><span class="nf">_visualizer_thread_function</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">      </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">      Execution function within the visualizer thread tasked to decouple computationally intensive visualization</span>
+<span class="sd">      from the main application.</span>
+<span class="sd">      &quot;&quot;&quot;</span>
+      <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Start Visualization thread&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">evaluation_status</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">STATUS_RUNNING</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">visualize</span><span class="p">():</span>
+               <span class="k">for</span> <span class="n">output_json</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_json_objects</span><span class="p">:</span>
+                  <span class="bp">self</span><span class="o">.</span><span class="n">_save_visualization_result</span><span class="p">(</span><span class="n">output_json</span><span class="p">)</span>
+                  <span class="bp">self</span><span class="o">.</span><span class="n">evaluation_status</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">STATUS_FINISHED</span>
+                  <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Evaluation successful&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+               <span class="bp">self</span><span class="o">.</span><span class="n">evaluation_status</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">STATUS_FAILED</span>
+
+      <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Evaluation failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">evaluation_status</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">STATUS_FAILED</span>
+      <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Update Evaluation object&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">evaluation_status</span><span class="o">.</span><span class="n">stopTime</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">evaluation_status</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+
+   <span class="k">def</span><span class="w"> </span><span class="nf">_save_visualization_result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">output_json</span><span class="p">):</span>
+<span class="w">      </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">      Stores the visualization object in json format allowing for a seamless visualization in the frontend.</span>
+<span class="sd">      E.g. using the d3-library.</span>
+
+<span class="sd">      :param output_json: json-object representing the visualization.</span>
+<span class="sd">      :return:None.</span>
+<span class="sd">      &quot;&quot;&quot;</span>
+      <span class="n">visualizations</span> <span class="o">=</span> <span class="n">Visualizations</span><span class="p">(</span>
+            <span class="n">evaluationStatus</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">evaluation_status</span><span class="p">,</span>
+            <span class="n">visualizationType</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">visualization_type</span><span class="p">,</span>
+            <span class="n">resultObject</span><span class="o">=</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_evaluation_dict</span><span class="p">),</span>
+            <span class="n">json</span><span class="o">=</span><span class="n">output_json</span>
+      <span class="p">)</span>
+      <span class="n">visualizations</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+<section id="generic-messaging-service-endpoints">
+<h2>Generic Messaging Service Endpoints<a class="headerlink" href="#generic-messaging-service-endpoints" title="Link to this heading"></a></h2>
+<p>This section outlines the service-oriented architecture facilitated by the NATS framework. This framework enables seamless interaction among microservices responsible for test execution and the backend infrastructure.</p>
+<p>In this architecture, devices communicate by subscribing to specific topics, while other devices publish relevant information on these topics. Subsequently, this information is disseminated to all subscribers within the network.</p>
+<p>The provided interface provides the following functionalities:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><strong>Device Detection:</strong> It aids in identifying devices within the network.</p></li>
+<li><p><strong>Test Scheduling:</strong> Microservices utilize this interface to schedule tests efficiently.</p></li>
+<li><p><strong>Test Execution Monitoring:</strong> It facilitates real-time monitoring of test execution states.</p></li>
+<li><p><strong>Live-Plot functionality:</strong> Live data can be provided by a streaming interface, to enable visualization of meausrements during the execution, e.g. visualizing the SMU measurements.</p></li>
+</ul>
+</div></blockquote>
+<p>Consequently, the interface offers the following endpoints, which must be implemented by any microservice instance to participate in the network:</p>
+<blockquote>
+<div><ul>
+<li><p>Topic: <strong>schedule_test</strong>  Payload: Concatination of the test template payload, the sample and device payload.</p>
+<blockquote>
+<div><p>Example:</p>
+<blockquote>
+<div><div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{}</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div></blockquote>
+</li>
+<li><p>Topic: <strong>get_test_status</strong> Payload: Porvides the test id and the current state of the execution in percentage.</p></li>
+</ul>
+<p>Example:</p>
+<blockquote>
+<div><div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{}</span>
+</pre></div>
+</div>
+</div></blockquote>
+<ul>
+<li><p>Topic: <strong>get_devices</strong>: Payload: Device info following the configuration json file.</p>
+<blockquote>
+<div><p>Example:</p>
+<blockquote>
+<div><div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{}</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div></blockquote>
+</li>
+<li><p>Topic: <strong>stream_data</strong>: Payload: Streaming data as array to be visualized at the frontend.</p>
+<blockquote>
+<div><p>Example:</p>
+<blockquote>
+<div><div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{}</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div></blockquote>
+</li>
+</ul>
+</div></blockquote>
+</section>
+<section id="rest-endpoints">
+<h2>REST Endpoints<a class="headerlink" href="#rest-endpoints" title="Link to this heading"></a></h2>
+<p>The app is written in python using Django as main backend framework.
+Django allows us to subdivide the application into multiple apps with
+different functionality:</p>
+<ul>
+<li><p class="rubric">Authentication</p>
+<p>Provides the functionality required for the logging functionality,
+which is based on a token, which is passed from the frontend.</p>
+<ul class="simple">
+<li><p>It provides the following endpoints:</p>
+<ul>
+<li><p><strong>POST /authentication/logout</strong> deletes the requested token and
+prevents access to all services after sending logout.</p>
+<ul>
+<li><p><strong>Parameters:</strong></p>
+<ul>
+<li><p>token: token to delete</p></li>
+</ul>
+</li>
+<li><p><strong>Returns:</strong> HTTP_205_RESET_CONTENT</p></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p class="rubric">Dashboard Manager</p>
+<p>Provides all endpoints for widgets on the GUI dashboard</p>
+<ul>
+<li><p>It provides the following endpoints:</p>
+<ul>
+<li><p><strong>GET /dashboard/get_log_messages/</strong> returns log messages from
+the backend</p>
+<ul>
+<li><p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p>log_category: e.g. all or specific parts of the backend,
+e.g. evaluation_manager.</p></li>
+<li><p>log_type: e.g. Returns messages of a specific log type</p></li>
+<li><p>message_count: number of messages to retrieve.</p></li>
+</ul>
+</li>
+<li><p><strong>Returns:</strong></p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">&quot;logMessages&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">        </span><span class="s2">&quot;10:01:12 [Evaluation Manager] devices_view.py:34 ERROR: Receive request failed&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;10:01:12 [Evaluation Manager] devices_view.py:34 INFO: Receive request succeeded&quot;</span><span class="p">]}</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</li>
+<li><p><strong>GET /dashboard/get_server_info/</strong></p>
+<ul class="simple">
+<li><p><strong>Returns:</strong></p></li>
+</ul>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">&quot;serverinfo&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="nt">&quot;property&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;IP&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;127.0.0.1&quot;</span><span class="p">},</span>
+<span class="w">               </span><span class="p">{</span><span class="nt">&quot;property&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Port&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">8000</span><span class="p">},</span>
+<span class="w">               </span><span class="p">{</span><span class="nt">&quot;property&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;OS&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;UBUNTU LTS&quot;</span><span class="p">},</span>
+<span class="w">               </span><span class="p">{</span><span class="nt">&quot;property&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Online&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;31.12.2023 00:00&quot;</span><span class="p">}]}</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>GET /dashboard/get_server_info/</strong></p>
+<ul>
+<li><p><strong>GET /dashboard/get_log_messages/</strong> Returns memory
+consumption, cpu load and network traffic parameters from
+the backend</p>
+<ul class="simple">
+<li><p><strong>Returns:</strong></p></li>
+</ul>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">&quot;current_memory_consumption&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;current_cpu_load&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;current_network_usage&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">40</span><span class="p">,</span>
+<span class="nt">&quot;list_memory_consumption&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mf">2.4</span><span class="p">,</span><span class="w"> </span><span class="mf">2.8</span><span class="p">,</span><span class="w"> </span><span class="mf">2.4</span><span class="p">],</span><span class="w"> </span><span class="nt">&quot;list_cpu_load&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mf">5.3</span><span class="p">,</span><span class="mf">5.2</span><span class="p">,</span><span class="w"> </span><span class="mf">8.5</span><span class="p">],</span><span class="w"> </span><span class="nt">&quot;list_network_usage&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mf">5.3</span><span class="p">,</span><span class="mf">5.2</span><span class="p">,</span><span class="w"> </span><span class="mf">8.5</span><span class="p">]</span><span class="w"> </span><span class="p">}</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p class="rubric">Device Manager</p>
+<p>Provides all endpoints related to the device manager, e.g. to
+identify devices or to retrieve the wafer configuration.</p>
+<ul>
+<li><p>It provides the following endpoints:</p>
+<ul>
+<li><p><strong>GET /devices/get_devices/</strong> returns all devices currently
+available in the databased, which is flushed after each
+startup.</p>
+<ul class="simple">
+<li><p><strong>Returns:</strong></p></li>
+</ul>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">[{</span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;NANOSEC MicroService&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;idn&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;nanosec_container&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;protocol&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;tcp_ip&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;port&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;10.42.0.180&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;online&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">}]</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>POST /device/add_device</strong> manually adds a device to the
+backend. Other services are automatically added by an automatic
+discovery of the nats service</p>
+<ul>
+<li><p><strong>Parameters:</strong> Device specific configuration</p></li>
+<li><p><strong>Returns:</strong>:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ok&quot;</span><span class="p">}</span>
+<span class="p">{</span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;error&quot;</span><span class="p">}</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</li>
+<li><p><strong>GET /device/get_wafer_configs</strong> returns the available wafer
+configurations.</p>
+<ul>
+<li><p><strong>Parameters:</strong> Device specific configuration</p></li>
+<li><p><strong>Returns:</strong>:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">[{</span><span class="nt">&quot;waferID&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;pufID&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">23</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;row&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;column&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;rowsOnPUF&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">],</span><span class="w"> </span><span class="nt">&quot;columnsOnPUF&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">4</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">2</span><span class="p">]}]</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</li>
+<li><p class="rubric">Evaluation Manager</p>
+<p>Provides all endpoints to run evaluations, to list the
+available evaluation and visualization results and the
+endpoints to show evaluations and visualizations.</p>
+<ul>
+<li><p>It provides the following endpoints:</p>
+<ul>
+<li><p><strong>GET /evaluation/get_evaluation_types</strong> returns the
+different evaluation and visualization methods, based on
+the selected test category.</p>
+<ul>
+<li><p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p>testCategory: Currently the test categories
+“cnt_puf” and “memory” are supported.</p></li>
+</ul>
+</li>
+<li><p><strong>Returns:</strong>:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">&quot;evaluationMethods&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Visualization of Raw data&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;rawFigure&quot;</span><span class="p">},</span>
+<span class="w">                         </span><span class="p">{</span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Quantization (2-States)&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;quantize_2_states&quot;</span><span class="p">},</span>
+<span class="w">                         </span><span class="p">{</span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Quantization (3-States)&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;quantize_3_states&quot;</span><span class="p">},</span>
+<span class="w">                         </span><span class="p">{</span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Wafer Visualizer&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;waferVisualizer&quot;</span><span class="p">}]</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</li>
+<li><p><strong>GET /evaluation/get_evaluation_types</strong> returns the
+default configuration parameters of an evaluation or
+visualization method, identified by testType.</p>
+<ul>
+<li><p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p>testType: Currently the test categories “cnt_puf”
+and “memory” are supported.</p></li>
+</ul>
+</li>
+<li><p><strong>Returns:</strong></p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Raw Figure&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;rawFigure&quot;</span><span class="p">,</span>
+<span class="nt">&quot;properties&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;select&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;scale&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Scale&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;values&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;linear&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;log&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;symlog&quot;</span><span class="p">],</span>
+<span class="nt">&quot;default&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;linear&quot;</span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;select&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;hide_legend&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Hide Legend&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;values&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;true&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;false&quot;</span><span class="p">],</span>
+<span class="nt">&quot;default&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;false&quot;</span><span class="p">},</span><span class="w"> </span><span class="s2">&quot;.....&quot;</span><span class="p">]}</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</li>
+<li><p><strong>GET /evaluation/get_connected_measurements</strong> returns
+all measurements connected to a certain evaluation
+object.</p>
+<ul class="simple">
+<li><p><strong>Parameters:</strong></p>
+<ul>
+<li><p>taskID: The evaluation task which is connected to
+certain measurements.</p></li>
+</ul>
+</li>
+<li><p><strong>Returns:</strong></p></li>
+</ul>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">&quot;measurements&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;testType&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;TransferCharacteristic&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;testTitle&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Test1&quot;</span><span class="p">,</span>
+<span class="nt">&quot;wafer&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;row&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">7</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;column&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">8</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;pufID&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">23</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;rowOnPUF&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;columnOnPUF&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;temperature&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">23</span><span class="p">,</span>
+<span class="nt">&quot;iterations&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;selectedIteration&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">]}</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>GET /evaluation/start_evaluation</strong> Schedules an
+evaluation in the evaluation runner.</p>
+<ul>
+<li><p><strong>Parameters:</strong> Individual parameters depending on the
+type oe evaluation. When plotting transfer
+characteristics:</p>
+<ul>
+<li><p>e.g. for CNT PUF raw evaluation</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">&quot;scale&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;linear&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;hide_legend&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;false&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;legend_font_size&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">20</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;axis_tick_font_size&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">15</span><span class="p">,</span>
+<span class="nt">&quot;axis_label_font_size&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">20</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;title_font_size&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">20</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;plot_mode&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Source Drain Current&quot;</span><span class="p">}</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</li>
+<li><p><strong>Returns:</strong></p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ok&quot;</span><span class="p">}</span>
+<span class="p">{</span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;error&quot;</span><span class="p">}</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</li>
+<li><p><strong>GET /evaluation/get_status</strong> returns the status of all
+evaluation runs.</p>
+<ul>
+<li><p><strong>Returns:</strong></p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">&quot;tasks&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="nt">&quot;task_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">158</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">158</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;title&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Test&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;startTime&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">1706474333358.4011</span><span class="p">,</span>
+<span class="nt">&quot;stopTime&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">1706474385709.7869</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;finished&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;evaluationType&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;waferVisualizer&quot;</span><span class="p">}]}</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</li>
+<li><p><strong>DELETE /evaluation/delete_result</strong> deletes an
+evaluation result from the database.</p>
+<ul>
+<li><p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p>taskID: id of the task to delete.</p></li>
+</ul>
+</li>
+<li><p><strong>Results:</strong></p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ok&quot;</span><span class="p">}</span>
+<span class="p">{</span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;error&quot;</span><span class="p">}</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</li>
+<li><p><strong>GET /evaluation/visualizations</strong> returns evaluation
+data and a visualization json corresponding to a certain
+taskID.</p>
+<ul class="simple">
+<li><p><strong>Parameters:</strong> taskID: id to identify the chart and
+evaluationStatus data.</p></li>
+<li><p><strong>Results:</strong></p>
+<ul>
+<li><p>Returns a test specific chart and evaluationStatus
+data object.</p></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p class="rubric">Generic Messaging Service</p>
+<p>Provides all the functionality to communicate with a messaging
+service. Currently, NATS messaging service is implemented, which
+allows to discover devices and to schedule test to multiple Micro
+Service which implements the device specific interface.</p>
+<ul>
+<li><p>It provides the following endpoints:</p>
+<ul>
+<li><p><strong>GET /nats/start</strong> starts the nats service and connects to the
+broker (Important: run nats-server bevore)</p>
+<ul>
+<li><p><strong>Returns:</strong>:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;started&quot;</span><span class="p">}</span>
+<span class="p">{</span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;running&quot;</span><span class="p">}</span>
+<span class="p">{</span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;error&quot;</span><span class="p">}</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</li>
+<li><p><strong>GET /nats/get_test_status</strong> returns a list of all waiting,
+running or finished tests and additional data such as the test
+title, current, iteration, etc.</p>
+<ul>
+<li><p><strong>Parameters:</strong>:</p>
+<ul class="simple">
+<li><p>filter: specifies the queue which filters “waiting”,
+“running” or “finished” tests.</p></li>
+</ul>
+</li>
+<li><p><strong>Returns:</strong>:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ok&quot;</span><span class="p">}</span>
+<span class="p">{</span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;error&quot;</span><span class="p">}</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</li>
+<li><p><strong>POST /nats/schedule_test</strong> schedules a test across the
+nats-broker.</p>
+<ul>
+<li><p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p>test specifying the specification in json</p></li>
+</ul>
+</li>
+<li><p><strong>Returns:</strong></p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ok&quot;</span><span class="p">}</span>
+<span class="p">{</span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;error&quot;</span><span class="p">}</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p class="rubric">Test Manager</p>
+<p>Provides models and functionality to store and filter test templates
+and instances.</p>
+<ul>
+<li><p>It provides the following endpoints:</p>
+<ul>
+<li><p><strong>GET /tests/get_evaluated_data</strong> returns evaluation data
+filtered by its type and id.</p>
+<ul>
+<li><p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p>type: defines the test category either “cnt_puf” or
+“memory” is currently supported</p></li>
+<li><p>id: Identifier of the test of a specific test category</p></li>
+</ul>
+</li>
+<li><p><strong>Returns:</strong></p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ok&quot;</span><span class="p">}</span>
+<span class="p">{</span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;error&quot;</span><span class="p">}</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</li>
+<li><p><strong>GET /tests/get_default_values</strong> returns the default values of
+a “memory” or “cnt_puf” test template initiation.</p>
+<ul>
+<li><p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p>testClass: defines the test category either “cnt_puf” or
+“memory” is currently supported.</p></li>
+</ul>
+</li>
+<li><p><strong>Returns:</strong></p>
+<ul>
+<li><p>in case of cnt_pufs</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">&quot;title&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;min_VDS&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">-1</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;max_VDS&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;step_VDS&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.1</span><span class="p">,</span>
+<span class="w"> </span><span class="nt">&quot;min_VGS&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">-2.5</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;max_VGS&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">2.5</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;step_VGS&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.1</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;test_type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&quot;</span><span class="p">,</span>
+<span class="w"> </span><span class="nt">&quot;nrIterations&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;pulsed&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;False&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;temperature&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">20</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;hysteresis&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;False&quot;</span><span class="p">}</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong>GET /tests/get_test_categories</strong> returns the different test
+categories available, e.g. memory tests, cnt, script or
+memristor tests.</p>
+<ul>
+<li><p><strong>Returns:</strong></p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">&quot;categories&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="nt">&quot;field&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;memoryTest&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Memory Test&quot;</span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;field&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cntTest&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Carbon Nanotube Test&quot;</span><span class="p">},</span>
+<span class="p">{</span><span class="nt">&quot;field&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;memristorTest&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Memristor Test&quot;</span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;field&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;scriptExecution&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Script Test&quot;</span><span class="p">}]}</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</li>
+<li><p><strong>POST /tests/add_test</strong> add a test template to the database,
+which can later be scheduled.</p>
+<ul>
+<li><p><strong>Parameters:</strong></p>
+<ul>
+<li><p>parameter expects a json with test template specific
+parameters, e.g. for cnt-pufs</p>
+<blockquote>
+<div><div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="nt">&quot;title&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;test&quot;</span><span class="p">,</span>
+<span class="w"> </span><span class="nt">&quot;test_type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;TransferCharacterization&quot;</span><span class="p">,</span>
+<span class="w"> </span><span class="nt">&quot;nrIterations&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span>
+<span class="w"> </span><span class="nt">&quot;min_vDS&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">-0.5</span><span class="p">,</span>
+<span class="w"> </span><span class="nt">&quot;max_VDS&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.5</span>
+<span class="w"> </span><span class="s2">&quot;...&quot;</span><span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+</li>
+</ul>
+</li>
+<li><p><strong>Returns:</strong></p></li>
+</ul>
+<blockquote>
+<div><div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ok&quot;</span><span class="p">}</span>
+<span class="p">{</span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;error&quot;</span><span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+</li>
+<li><p><strong>DELETE /tests/delete_test</strong> deletes a test template
+identified by the test category and identifier.</p>
+<ul class="simple">
+<li><p><strong>Parameters:</strong> testType: defines the test category either
+“cnt_puf” or “memory” is currently supported id: Identifier
+of the test of a specific test category</p></li>
+<li><p><strong>Returns:</strong></p></li>
+</ul>
+<blockquote>
+<div><div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ok&quot;</span><span class="p">}</span>
+<span class="p">{</span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;error&quot;</span><span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+</li>
+<li><p><strong>GET /tests/get_tests</strong> returns a list of test templates
+filtered by the test type.</p>
+<ul>
+<li><p><strong>Parameters:</strong> testType: defines the test category either
+“cnt_puf” or “memory” is currently supported</p></li>
+<li><p><strong>Returns:</strong></p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">&quot;tests&quot;</span><span class="p">:[{</span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;title&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;test&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;testType&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Read Latency Tests&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;category&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;memory&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;initialValue&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;0&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;startAddress&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span>
+<span class="nt">&quot;stopAddress&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;voltage&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">10.0</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;temperature&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">10.0</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;dataSetupTime&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;1&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;createdAt&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;None&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;iterations&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;initialValue_2&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;1&quot;</span><span class="p">}]}</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Florian Frank, Abderrazzak El Khayari, Alexander Braml.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
